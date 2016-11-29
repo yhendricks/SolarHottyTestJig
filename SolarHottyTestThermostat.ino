@@ -1,5 +1,8 @@
 #include <EEPROM.h>
 
+
+#define VER_NUM             0.1           // File version number
+
 bool thermostat_state = false;           // Holds the state of the thermostat
 const int WATER_PUMP_PIN = 12;
 // current measurement variables
@@ -48,7 +51,8 @@ void setup()
     // Read the configuration i.e. the total number of contact breaks of the thermostat
     EEPROM_readAnything(81, configuration);
     Serial.println("\r\n");
-    Serial.println("SolarHotty Test Application");
+    Serial.println("SolarHotty Test Application ");
+    Serial.print(VER_NUM,1);
     Serial.println("==========================="); 
     Serial.println("Press x to reset the counter");   
 }
