@@ -51,9 +51,9 @@ void setup()
     // Read the configuration i.e. the total number of contact breaks of the thermostat
     EEPROM_readAnything(81, configuration);
     Serial.println("\r\n");
-    Serial.println("SolarHotty Test Application ");
-    Serial.print(VER_NUM,1);
-    Serial.println("==========================="); 
+    Serial.print("SolarHotty Test Application ");
+    Serial.println(VER_NUM,1);
+    Serial.println("==============================="); 
     Serial.println("Press x to reset the counter");   
 }
   
@@ -71,7 +71,7 @@ void print_configuration()
 
 void print_thermostat_state()
 {
-    Serial.println(thermostat_state == CLOSED ? "Thermostat is close" : "Thermostat is open" ); 
+    Serial.println(thermostat_state == CLOSED ? "Thermostat state: close" : "Thermostat state: open" ); 
 }
 
 int mVperAmp = 66; // use 185 or use 100 for 20A Module and 66 for 30A Module
@@ -82,8 +82,8 @@ double Amps = 0;
 
 float measure_current() {
     RawValue = analogRead(A0);
-//    Serial.print(RawValue);
-//    Serial.print(" ");
+    Serial.print(RawValue);
+    Serial.print(" ");
     Voltage = (RawValue / 1024.0) * 5000; // Gets you mV
     amps = ((Voltage - ACSoffset) / mVperAmp); 
     
@@ -93,9 +93,9 @@ float measure_current() {
     maxAmps = max(maxAmps, amps);
     minAmps = min(minAmps, amps);
     noise = maxAmps - minAmps;
-//    Serial.print(amps);
-//    Serial.print(" ");
-//    Serial.println(noise);
+    Serial.print(amps);
+    Serial.print(" ");
+    Serial.println(noise);
     if (Serial.read() != -1) 
         {maxAmps = amps; minAmps = amps;}
     return amps;
