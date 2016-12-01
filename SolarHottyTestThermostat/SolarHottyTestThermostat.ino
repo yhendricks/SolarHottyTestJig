@@ -73,7 +73,6 @@ struct config_t
 
 
 bool check_ac_current(int sensorValue) {
-    //sensorValue = analogRead(A0);  // read the analog in value:
     inputStats.input(sensorValue);  // log to Stats function
 
     if ((unsigned long)(millis() - previous_AC_Millis) >= print_AC_Period)
@@ -90,12 +89,6 @@ bool check_ac_current(int sensorValue) {
             current_amps = intercept + slope * inputStats.sigma();
             Serial.print( "\tamps: " ); Serial.print( current_amps );
         }
-        if ((inputStats.sigma() > 50) && (hottyState != AC_DETECTED))
-        {
-            Serial.println("\nHotty running on AC current ");
-            hottyState = AC_DETECTED;
-            led_blink_period = 1000;
-        }
     }
     return(inputStats.sigma() > 50);    
 }
@@ -107,16 +100,16 @@ void display_help()
     Serial.println(VER_NUM,1);
     Serial.println("==============================="); 
     Serial.println("Enter:");
-    Serial.println("\"reset\" to reset the counter");   
-    Serial.println("\"debug\" to toggle the debug flag");   
-    Serial.println("\"pinon x\" to turn ON pin x");   
-    Serial.println("\"pinoff x\" to turn OFF pin x");
-    Serial.println("\"help x\" to display this message");
+    Serial.println("\t\"reset\" to reset the counter");   
+    Serial.println("\t\"debug\" to toggle the debug flag");   
+    Serial.println("\t\"pinon x\" to turn ON pin x");   
+    Serial.println("\t\"pinoff x\" to turn OFF pin x");
+    Serial.println("\t\"help\" to display this message");
 }
 
 void setup()
 {    
-    Serial.begin(57600);
+    Serial.begin(115200);
     pinMode(WATER_PUMP_PIN, OUTPUT);
     pinMode(LED_BUILTIN, OUTPUT);
     // Read the configuration i.e. the total number of contact breaks of the thermostat
@@ -132,7 +125,7 @@ enum thermoState get_thermostat_state(int raw_value)
 
 void print_configuration()
 {
-    Serial.print("# of thermostat contact breaks: ");
+    Serial.print("\n# of thermostat contact breaks: ");
     Serial.println(configuration.counter);     
 }
 
@@ -158,10 +151,10 @@ float measure_dc_current(int RawValue) {
     maxAmps = max(maxAmps, amps);
     minAmps = min(minAmps, amps);
     noise = maxAmps - minAmps;
-    if (Serial.read() != -1)
-    {
-        maxAmps = amps; minAmps = amps;
-    }
+//    if (Serial.read() != -1)
+//    {
+//        maxAmps = amps; minAmps = amps;
+//    }
     if ((unsigned long)(millis() - previous_DC_Millis) >= print_DC_Period)
     {
         previous_DC_Millis = millis();   // update time
@@ -223,10 +216,16 @@ void loop() {
         }
         else
         {
-            digitalWrite(WATER_PUMP_PIN, LOW);             // switch ON water pump          
+            if (hottyState != AC_DETECTED)
+            {
+              Serial.println("\nHotty running on AC current ");
+              hottyState = AC_DETECTED;
+              digitalWrite(WATER_PUMP_PIN, LOW);             // switch ON water pump 
+              led_blink_period = 1000;
+            }         
         }
         //  check if data has been sent from the computer: 
-        if (Serial.available())
+        while (Serial.available())
         {
             char c = Serial.read();
             if (c == '\n')
@@ -236,7 +235,10 @@ void loop() {
             }
             else
             {
+              if (isAlphaNumeric(c) || isWhitespace(c)) {
                 command += c;
+                //Serial.print(c);
+              }
             }
         }
 
@@ -262,35 +264,46 @@ void parseCommand(String cmd)
 {
     String part1;
     String part2;
-    // e.g. PINON 3  or PINOFF 3
-    part1 = cmd.substring(0, cmd.indexOf(" "));
-    part1 = cmd.substring(cmd.indexOf(" ") + 1);
-    if (part1.equalsIgnoreCase("pinon"))
+
+    if (cmd.indexOf(" ") == -1)
+    {      
+      if (cmd.indexOf("debug") != -1)
+      {         
+          debug_on = !debug_on; 
+      } 
+      else if (cmd.indexOf("reset") != -1)
+      {             
+          configuration.counter = 0;
+          print_configuration();   
+      }
+      else if (cmd.indexOf("help") != -1)
+      {         
+          display_help(); 
+      }
+      else 
+      {
+          Serial.println("Invalid Command - " + cmd);
+      }
+    }
+    else
     {
-        int pin = part2.toInt();
-        digitalWrite(pin, HIGH);
-    }
-    else if (part1.equalsIgnoreCase("pinoff"))
-    {   
-        int pin = part2.toInt();
-        digitalWrite(pin, LOW);
-    }
-    else if (part1.equalsIgnoreCase("debug"))
-    {         
-        debug_on = !debug_on; 
-    } 
-    else if (part1.equalsIgnoreCase("reset"))
-    {             
-        configuration.counter = 0;
-        print_configuration();   
-    }
-    else if (part1.equalsIgnoreCase("help"))
-    {         
-        display_help(); 
-    }
-    else 
-    {
-        Serial.println("Invalid Command - " + cmd);
+      // e.g. PINON 3  or PINOFF 3
+      part1 = cmd.substring(0, cmd.indexOf(" "));
+      part2 = cmd.substring(cmd.indexOf(" ") + 1);
+      if (part1.equalsIgnoreCase("pinon"))
+      {
+          int pin = part2.toInt();
+          digitalWrite(pin, HIGH);
+      }
+      else if (part1.equalsIgnoreCase("pinoff"))
+      {   
+          int pin = part2.toInt();
+          digitalWrite(pin, LOW);
+      }
+      else 
+      {
+          Serial.println("Invalid Command - " + cmd);
+      }
     }
 
 }
