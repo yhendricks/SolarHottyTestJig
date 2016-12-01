@@ -3,24 +3,25 @@
 
 
 #define VER_NUM             0.1           // File version number
+#define TEST_FREQUENCY      60            // test signal frequency (Hz)
+#define WATER_PUMP_PIN      12
 
 bool thermostat_state = false;           // Holds the state of the thermostat
-const int WATER_PUMP_PIN = 12;
+
 // DC current measurement variables
 float amps = 0;
 float maxAmps = 0;
 float minAmps = 0;
 float lastAmps = 0;
 float noise = 0;
-unsigned long print_DC_Period = 1000; // in milliseconds 
-unsigned long previous_DC_Millis = 0;  // Track time in milliseconds since last reading
+unsigned long print_DC_Period = 1000;           // in milliseconds 
+unsigned long previous_DC_Millis = 0;           // Track time in milliseconds since last reading
 
 // AC current measurement variables
-float testFrequency = 60;                     // test signal frequency (Hz)
-float windowLength = 20.0/testFrequency;     // how long to average the signal, for statistist
-float intercept = -0.1129; // to be adjusted based on calibration testing
-float slope = 0.0405; // to be adjusted based on calibration testing
-float current_amps; // estimated actual current in amps
+float windowLength = 20.0/TEST_FREQUENCY;        // how long to average the signal, for statistist
+float intercept = -0.1129;                      // to be adjusted based on calibration testing
+float slope = 0.0405;                           // to be adjusted based on calibration testing
+float ac_current_amps; // estimated actual current in amps
 unsigned long print_AC_Period = 1000; // in milliseconds 
 unsigned long previous_AC_Millis = 0;  // Track time in milliseconds since last reading
 RunningStatistics inputStats;                 // create statistics to look at the raw test signal
@@ -28,7 +29,6 @@ RunningStatistics inputStats;                 // create statistics to look at th
 // LED status
 unsigned long led_blink_period = 1000; // in milliseconds 
 unsigned long last_led_check = 0;       // Track time in milliseconds since last reading
-bool led_state = false;
 
 // debug flag
 bool debug_on = false;
@@ -86,8 +86,8 @@ bool check_ac_current(int sensorValue) {
             // output sigma or variation values associated with the inputValue itsel
             Serial.print( "\tsigma: " ); Serial.print( inputStats.sigma() );
             // convert signal sigma value to current in amps
-            current_amps = intercept + slope * inputStats.sigma();
-            Serial.print( "\tamps: " ); Serial.print( current_amps );
+            ac_current_amps = intercept + slope * inputStats.sigma();
+            Serial.print( "\tamps: " ); Serial.print( ac_current_amps );
         }
     }
     return(inputStats.sigma() > 50);    
@@ -119,7 +119,6 @@ void setup()
 
 enum thermoState get_thermostat_state(int raw_value)
 {
-//    return digitalRead(MEASURE_THERMO_CURRENT_PIN) ?  OPEN :  CLOSED;
     return measure_dc_current(raw_value) > 0.5 ? CLOSED : OPEN;
 }
 
@@ -134,7 +133,7 @@ void print_thermostat_state()
     Serial.println(thermostat_state == CLOSED ? "Thermostat state: close" : "Thermostat state: open" ); 
 }
 
-int mVperAmp = 66; // use 185 or use 100 for 20A Module and 66 for 30A Module
+int mVperAmp = 66;                  // use 185 or use 100 for 20A Module and 66 for 30A Module
 int RawValue= 0;
 int ACSoffset = 2500; 
 double Voltage = 0;
@@ -151,10 +150,6 @@ float measure_dc_current(int RawValue) {
     maxAmps = max(maxAmps, amps);
     minAmps = min(minAmps, amps);
     noise = maxAmps - minAmps;
-//    if (Serial.read() != -1)
-//    {
-//        maxAmps = amps; minAmps = amps;
-//    }
     if ((unsigned long)(millis() - previous_DC_Millis) >= print_DC_Period)
     {
         previous_DC_Millis = millis();   // update time
@@ -184,6 +179,8 @@ String command;
 
 void loop() {
     byte byteRead;
+    bool led_state = false;
+
 
     inputStats.setWindowSecs( windowLength );
     while (1)
@@ -218,11 +215,11 @@ void loop() {
         {
             if (hottyState != AC_DETECTED)
             {
-              Serial.println("\nHotty running on AC current ");
-              hottyState = AC_DETECTED;
-              digitalWrite(WATER_PUMP_PIN, LOW);             // switch ON water pump 
-              led_blink_period = 1000;
-            }         
+                Serial.println("\nHotty running on AC current ");
+                hottyState = AC_DETECTED;
+                digitalWrite(WATER_PUMP_PIN, LOW);             // switch ON water pump 
+                led_blink_period = 1000;
+            }
         }
         //  check if data has been sent from the computer: 
         while (Serial.available())
@@ -235,10 +232,11 @@ void loop() {
             }
             else
             {
-              if (isAlphaNumeric(c) || isWhitespace(c)) {
-                command += c;
-                //Serial.print(c);
-              }
+                if (isAlphaNumeric(c) || isWhitespace(c))
+                {
+                    command += c;
+                    //Serial.print(c);
+                }
             }
         }
 
@@ -266,44 +264,44 @@ void parseCommand(String cmd)
     String part2;
 
     if (cmd.indexOf(" ") == -1)
-    {      
-      if (cmd.indexOf("debug") != -1)
-      {         
-          debug_on = !debug_on; 
-      } 
-      else if (cmd.indexOf("reset") != -1)
-      {             
-          configuration.counter = 0;
-          print_configuration();   
-      }
-      else if (cmd.indexOf("help") != -1)
-      {         
-          display_help(); 
-      }
-      else 
-      {
-          Serial.println("Invalid Command - " + cmd);
-      }
+    {
+        if (cmd.indexOf("debug") != -1)
+        {
+            debug_on = !debug_on; 
+        }
+        else if (cmd.indexOf("reset") != -1)
+        {
+            configuration.counter = 0;
+            print_configuration();   
+        }
+        else if (cmd.indexOf("help") != -1)
+        {
+            display_help(); 
+        }
+        else
+        {
+            Serial.println("Invalid Command - " + cmd);
+        }
     }
     else
     {
-      // e.g. PINON 3  or PINOFF 3
-      part1 = cmd.substring(0, cmd.indexOf(" "));
-      part2 = cmd.substring(cmd.indexOf(" ") + 1);
-      if (part1.equalsIgnoreCase("pinon"))
-      {
-          int pin = part2.toInt();
-          digitalWrite(pin, HIGH);
-      }
-      else if (part1.equalsIgnoreCase("pinoff"))
-      {   
-          int pin = part2.toInt();
-          digitalWrite(pin, LOW);
-      }
-      else 
-      {
-          Serial.println("Invalid Command - " + cmd);
-      }
+        // e.g. PINON 3  or PINOFF 3
+        part1 = cmd.substring(0, cmd.indexOf(" "));
+        part2 = cmd.substring(cmd.indexOf(" ") + 1);
+        if (part1.equalsIgnoreCase("pinon"))
+        {
+            int pin = part2.toInt();
+            digitalWrite(pin, HIGH);
+        }
+        else if (part1.equalsIgnoreCase("pinoff"))
+        {
+            int pin = part2.toInt();
+            digitalWrite(pin, LOW);
+        }
+        else
+        {
+            Serial.println("Invalid Command - " + cmd);
+        }
     }
 
 }
