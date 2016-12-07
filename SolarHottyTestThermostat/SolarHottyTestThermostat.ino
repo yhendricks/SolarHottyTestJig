@@ -2,9 +2,10 @@
 #include <Filters.h>
 
 
-#define VER_NUM             0.1           // File version number
-#define TEST_FREQUENCY      60            // test signal frequency (Hz)
-#define WATER_PUMP_PIN      12
+#define VER_NUM                             0.2           // File version number
+#define TEST_FREQUENCY                      50            // test signal frequency (Hz)
+#define WATER_PUMP_PIN                      12
+//#define AC_GEYSER_ASSIST_ELEMENT_PIN        12
 
 bool thermostat_state = false;           // Holds the state of the thermostat
 
@@ -100,17 +101,20 @@ void display_help()
     Serial.println(VER_NUM,1);
     Serial.println("==============================="); 
     Serial.println("Enter:");
-    Serial.println("\t\"reset\" to reset the counter");   
+    Serial.println("\t\"setcounter x\" set the counter to value x");   
     Serial.println("\t\"debug\" to toggle the debug flag");   
     Serial.println("\t\"pinon x\" to turn ON pin x");   
     Serial.println("\t\"pinoff x\" to turn OFF pin x");
     Serial.println("\t\"help\" to display this message");
+
+    print_configuration();
 }
 
 void setup()
 {    
     Serial.begin(115200);
     pinMode(WATER_PUMP_PIN, OUTPUT);
+    //pinMode(AC_GEYSER_ASSIST_ELEMENT_PIN, OUTPUT);
     pinMode(LED_BUILTIN, OUTPUT);
     // Read the configuration i.e. the total number of contact breaks of the thermostat
     EEPROM_readAnything(81, configuration);
@@ -119,7 +123,7 @@ void setup()
 
 enum thermoState get_thermostat_state(int raw_value)
 {
-    return measure_dc_current(raw_value) > 0.5 ? CLOSED : OPEN;
+    return abs(measure_dc_current(raw_value)) > 0.3 ? CLOSED : OPEN;
 }
 
 void print_configuration()
@@ -168,7 +172,6 @@ float measure_dc_current(int RawValue) {
         if (hottyState != DC_DETECTED)
         {
             hottyState = DC_DETECTED;
-            led_blink_period = 400;
             Serial.println("\nHotty running on DC current ");
         }
     }
@@ -180,6 +183,7 @@ String command;
 void loop() {
     byte byteRead;
     bool led_state = false;
+    int counter = 0;
 
 
     inputStats.setWindowSecs( windowLength );
@@ -193,11 +197,25 @@ void loop() {
                 // There is DC current flowing
                 if (thermostat_state == OPEN)
                 {
-                    configuration.counter++;
-                    thermostat_state = CLOSED;
-                    digitalWrite(WATER_PUMP_PIN, HIGH);              // switch OFF water pump
-                    print_thermostat_state();
-                    print_configuration();
+                    counter = 0;
+                    for (int i = 0; i < 10; i++)
+                    {
+                        delayMicroseconds(1000);
+                        RawValue = analogRead(A0);
+                        if (get_thermostat_state(RawValue) == CLOSED)
+                            counter++;
+                    }
+                    if (counter >= 7)
+                    {
+                        configuration.counter++;
+                        thermostat_state = CLOSED;
+                        digitalWrite(WATER_PUMP_PIN, HIGH);                             // switch OFF water pump
+                        //digitalWrite(AC_GEYSER_ASSIST_ELEMENT_PIN, HIGH);               // switch ON the AC Geyser
+                        Serial.println("Water pump: OFF");
+                        print_thermostat_state();
+                        print_configuration();
+                        led_blink_period = 400;
+                    }
                 }
             }
             else
@@ -205,9 +223,23 @@ void loop() {
                 // There is NO DC current flowing
                 if (thermostat_state == CLOSED)
                 {
-                    thermostat_state = OPEN;   
-                    print_thermostat_state();    
-                    digitalWrite(WATER_PUMP_PIN, LOW);             // switch ON water pump
+                    counter = 0;
+                    for (int i = 0; i < 10; i++)
+                    {
+                        delayMicroseconds(1000);
+                        RawValue = analogRead(A0);
+                        if (get_thermostat_state(RawValue) == OPEN)
+                            counter++;
+                    }
+                    if (counter >= 7)
+                    {
+                        thermostat_state = OPEN;   
+                        print_thermostat_state();    
+                        digitalWrite(WATER_PUMP_PIN, LOW);             // switch ON water pump
+                        //digitalWrite(AC_GEYSER_ASSIST_ELEMENT_PIN, LOW);               // switch OFF the AC Geyser 
+                        Serial.println("Water pump: ON");
+                        led_blink_period = 1000;
+                    }
                 }
             }
         }
@@ -217,8 +249,9 @@ void loop() {
             {
                 Serial.println("\nHotty running on AC current ");
                 hottyState = AC_DETECTED;
-                digitalWrite(WATER_PUMP_PIN, LOW);             // switch ON water pump 
-                led_blink_period = 1000;
+                digitalWrite(WATER_PUMP_PIN, LOW);                              // switch ON water pump 
+                //digitalWrite(AC_GEYSER_ASSIST_ELEMENT_PIN, LOW);               // switch ON the AC Geyser      
+                led_blink_period = 2000;
             }
         }
         //  check if data has been sent from the computer: 
@@ -241,6 +274,7 @@ void loop() {
         }
 
         EEPROM_writeAnything(81, configuration);
+        // Set the blinking period
         if ((unsigned long)(millis() - last_led_check) >= (led_blink_period /2))
         {
             last_led_check = millis();   // update time
@@ -269,11 +303,6 @@ void parseCommand(String cmd)
         {
             debug_on = !debug_on; 
         }
-        else if (cmd.indexOf("reset") != -1)
-        {
-            configuration.counter = 0;
-            print_configuration();   
-        }
         else if (cmd.indexOf("help") != -1)
         {
             display_help(); 
@@ -298,6 +327,12 @@ void parseCommand(String cmd)
             int pin = part2.toInt();
             digitalWrite(pin, LOW);
         }
+        else if (part1.equalsIgnoreCase("setcounter"))
+        {
+            int value = part2.toInt();
+            configuration.counter = value;
+            print_configuration();
+        }
         else
         {
             Serial.println("Invalid Command - " + cmd);
@@ -305,4 +340,4 @@ void parseCommand(String cmd)
     }
 
 }
-
+
