@@ -2,8 +2,8 @@
 #include <Filters.h>
 
 
-#define VER_NUM             0.1           // File version number
-#define TEST_FREQUENCY      60            // test signal frequency (Hz)
+#define VER_NUM             0.2           // File version number
+#define TEST_FREQUENCY      50            // test signal frequency (Hz)
 #define WATER_PUMP_PIN      12
 
 bool thermostat_state = false;           // Holds the state of the thermostat
@@ -100,11 +100,13 @@ void display_help()
     Serial.println(VER_NUM,1);
     Serial.println("==============================="); 
     Serial.println("Enter:");
-    Serial.println("\t\"reset\" to reset the counter");   
+    Serial.println("\t\"setcounter X\" to set the counter to value x");   
     Serial.println("\t\"debug\" to toggle the debug flag");   
     Serial.println("\t\"pinon x\" to turn ON pin x");   
     Serial.println("\t\"pinoff x\" to turn OFF pin x");
     Serial.println("\t\"help\" to display this message");
+
+    print_configuration();
 }
 
 void setup()
@@ -269,11 +271,6 @@ void parseCommand(String cmd)
         {
             debug_on = !debug_on; 
         }
-        else if (cmd.indexOf("reset") != -1)
-        {
-            configuration.counter = 0;
-            print_configuration();   
-        }
         else if (cmd.indexOf("help") != -1)
         {
             display_help(); 
@@ -297,6 +294,12 @@ void parseCommand(String cmd)
         {
             int pin = part2.toInt();
             digitalWrite(pin, LOW);
+        }
+        else if (part1.equalsIgnoreCase("setcounter"))
+        {
+            int value = part2.toInt();
+            configuration.counter = value;
+            print_configuration();
         }
         else
         {
