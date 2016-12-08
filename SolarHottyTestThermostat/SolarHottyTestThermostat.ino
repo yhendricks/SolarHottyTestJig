@@ -1,8 +1,7 @@
 #include <EEPROM.h>
 #include <Filters.h>
+//#include <SD.h>
 
-
-#define VER_NUM                             0.2           // File version number
 #define TEST_FREQUENCY                      50            // test signal frequency (Hz)
 #define WATER_PUMP_PIN                      12
 //#define AC_GEYSER_ASSIST_ELEMENT_PIN        12
@@ -10,34 +9,29 @@
 bool thermostat_state = false;           // Holds the state of the thermostat
 
 // DC current measurement variables
-float amps = 0;
 float maxAmps = 0;
 float minAmps = 0;
 float lastAmps = 0;
-float noise = 0;
 unsigned long print_DC_Period = 1000;           // in milliseconds 
 unsigned long previous_DC_Millis = 0;           // Track time in milliseconds since last reading
 #define MV_PER_AMP                  66                  // use 185 or use 100 for 20A Module and 66 for 30A Module
 #define ACS_OFFSET                  2500
-//double Amps = 0;
 
 // AC current measurement variables
 float windowLength = 20.0/TEST_FREQUENCY;        // how long to average the signal, for statistist
 float intercept = -0.1129;                      // to be adjusted based on calibration testing
 float slope = 0.0405;                           // to be adjusted based on calibration testing
-float ac_current_amps; // estimated actual current in amps
 unsigned long print_AC_Period = 1000; // in milliseconds 
 unsigned long previous_AC_Millis = 0;  // Track time in milliseconds since last reading
 RunningStatistics inputStats;                 // create statistics to look at the raw test signal
 
-// LED status
-unsigned long led_blink_period = 1000; // in milliseconds 
-unsigned long last_led_check = 0;       // Track time in milliseconds since last reading
 
 // debug flag
 bool debug_on = false;
 
+// SD Card
 
+bool sd_card_present = true;
 
 enum thermoState
 {
@@ -80,6 +74,7 @@ struct config_t
 
 bool check_ac_current(int sensorValue) {
     inputStats.input(sensorValue);  // log to Stats function
+    float amps = 0;
 
     if ((unsigned long)(millis() - previous_AC_Millis) >= print_AC_Period)
     {
@@ -92,8 +87,8 @@ bool check_ac_current(int sensorValue) {
             // output sigma or variation values associated with the inputValue itsel
             Serial.print( "\tsigma: " ); Serial.print( inputStats.sigma() );
             // convert signal sigma value to current in amps
-            ac_current_amps = intercept + slope * inputStats.sigma();
-            Serial.print( "\tamps: " ); Serial.print( ac_current_amps );
+            amps = intercept + slope * inputStats.sigma();
+            Serial.print( "\tamps: " ); Serial.print( amps );
         }
     }
     return(inputStats.sigma() > 50);    
@@ -101,23 +96,48 @@ bool check_ac_current(int sensorValue) {
 
 void display_help()
 {
-    Serial.println("\r\n");
-    Serial.print("SolarHotty Test Application ");
-    Serial.println(VER_NUM,1);
-    Serial.println("==============================="); 
-    Serial.println("Enter:");
-    Serial.println("\t\"setcounter x\" set the counter to value x");   
-    Serial.println("\t\"debug\" to toggle the debug flag");   
-    Serial.println("\t\"pinon x\" to turn ON pin x");   
-    Serial.println("\t\"pinoff x\" to turn OFF pin x");
-    Serial.println("\t\"help\" to display this message");
+    String VER_NUM = "0.2";           // File version number
+    String data = "\r\n";
+    data += "SolarHotty Test Application " + VER_NUM;
+    data += ("==============================="); 
+    data += ("Enter:");
+    data += ("\t\"setcounter x\" set the counter to value x");   
+    data += ("\t\"debug\" to toggle the debug flag");   
+    data += ("\t\"pinon x\" to turn ON pin x");   
+    data += ("\t\"pinoff x\" to turn OFF pin x");
+    data += ("\t\"help\" to display this message");
+
+    log_data(data);
 
     print_configuration();
 }
 
 void setup()
-{    
+{   
+    // On the Ethernet Shield, CS is pin 4. Note that even if it's not
+    // used as the CS pin, the hardware CS pin (10 on most Arduino boards,
+    // 53 on the Mega) must be left as an output or the SD library
+    // functions will not work.
+    const int chipSelect = 4;
     Serial.begin(115200);
+    // Open serial communications and wait for port to open:
+    while (!Serial) {
+        ; // wait for serial port to connect. Needed for Leonardo only
+    }
+    log_data("Initializing SD card...");
+    // make sure that the default chip select pin is set to
+    // output, even if you don't use it:
+    pinMode(10, OUTPUT);
+    
+    // see if the card is present and can be initialized:
+    //if (!SD.begin(chipSelect)) 
+    {
+        // don't do anything more:
+        sd_card_present = false;
+        log_data("Card failed, or not present");
+    }
+    //log_data("card initialized.");
+
     pinMode(WATER_PUMP_PIN, OUTPUT);
     //pinMode(AC_GEYSER_ASSIST_ELEMENT_PIN, OUTPUT);
     pinMode(LED_BUILTIN, OUTPUT);
@@ -139,12 +159,15 @@ void print_configuration()
 
 void print_thermostat_state()
 {
-    Serial.println(thermostat_state == CLOSED ? "Thermostat state: close" : "Thermostat state: open" ); 
+    log_data(thermostat_state == CLOSED ? "Thermostat state: close" : "Thermostat state: open" ); 
 }
 
 float measure_dc_current(int RawValue) {       
 
     double Voltage = 0;
+    float noise = 0;
+    float amps = 0;
+
 
     Voltage = (RawValue / 1024.0) * 5000; // Gets you mV
     amps = ((Voltage - ACS_OFFSET) / MV_PER_AMP); 
@@ -184,6 +207,10 @@ void loop() {
     bool led_state = false;
     int counter = 0;
     int RawValue= 0;
+    // LED status
+    unsigned long led_blink_period = 1000; // in milliseconds 
+    unsigned long last_led_check = 0;       // Track time in milliseconds since last reading
+
 
 
     inputStats.setWindowSecs( windowLength );
@@ -210,9 +237,7 @@ void loop() {
                         configuration.counter++;
                         thermostat_state = CLOSED;
                         digitalWrite(WATER_PUMP_PIN, HIGH);                             // switch OFF water pump
-                        //digitalWrite(AC_GEYSER_ASSIST_ELEMENT_PIN, HIGH);               // switch ON the AC Geyser
-                        Serial.println("Water pump: OFF");
-                        print_thermostat_state();
+                        //digitalWrite(AC_GEYSER_ASSIST_ELEMENT_PIN, HIGH);               // switch ON the AC Geyser                        print_thermostat_state();
                         print_configuration();
                         led_blink_period = 400;
                     }
@@ -237,7 +262,6 @@ void loop() {
                         print_thermostat_state();    
                         digitalWrite(WATER_PUMP_PIN, LOW);             // switch ON water pump
                         //digitalWrite(AC_GEYSER_ASSIST_ELEMENT_PIN, LOW);               // switch OFF the AC Geyser 
-                        Serial.println("Water pump: ON");
                         led_blink_period = 1000;
                     }
                 }
@@ -247,11 +271,17 @@ void loop() {
         {
             if (hottyState != AC_DETECTED)
             {
-                Serial.println("\nHotty running on AC current ");
-                hottyState = AC_DETECTED;
-                digitalWrite(WATER_PUMP_PIN, LOW);                              // switch ON water pump 
-                //digitalWrite(AC_GEYSER_ASSIST_ELEMENT_PIN, LOW);               // switch ON the AC Geyser      
-                led_blink_period = 2000;
+                delay(5000);
+                // Sometime the hotty does a series of test. So to avoid switching while it is doing the tests
+                // we wait a while then perform the check again.
+                if (check_ac_current(RawValue) == true)
+                {                            
+                    log_data("\nHotty running on AC current ");
+                    hottyState = AC_DETECTED;
+                    digitalWrite(WATER_PUMP_PIN, LOW);                              // switch ON water pump 
+                    //digitalWrite(AC_GEYSER_ASSIST_ELEMENT_PIN, LOW);               // switch ON the AC Geyser      
+                    led_blink_period = 2000;
+                }
             }
         }
         //  check if data has been sent from the computer: 
@@ -288,6 +318,30 @@ void loop() {
                 digitalWrite(LED_BUILTIN, HIGH);  // turn the LED on (HIGH is the voltage level)
             }
         }
+    }
+}
+
+void log_data(String dataString)
+{ 
+    String data_file = "data.txt";  
+    // print to the serial port too:
+    Serial.println(dataString);
+
+    if (sd_card_present)
+    {
+//        // open the file. note that only one file can be open at a time,
+//        // so you have to close this one before opening another.
+//        File dataFile = SD.open(data_file, FILE_WRITE);
+//
+//        // if the file is available, write to it:
+//        if (dataFile) {
+//            dataFile.println(dataString);
+//            dataFile.close();        
+//        }  
+//        // if the file isn't open, pop up an error:
+//        else {
+//            Serial.println("error opening - " + data_file);
+//        } 
     }
 }
 
@@ -338,3 +392,5 @@ void parseCommand(String cmd)
         }
     }
 }
+
+
