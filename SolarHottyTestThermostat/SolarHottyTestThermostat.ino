@@ -98,14 +98,14 @@ void display_help()
 {
     String VER_NUM = "0.2";           // File version number
     String data = "\r\n";
-    data += "SolarHotty Test Application " + VER_NUM;
-    data += ("==============================="); 
-    data += ("Enter:");
-    data += ("\t\"setcounter x\" set the counter to value x");   
-    data += ("\t\"debug\" to toggle the debug flag");   
-    data += ("\t\"pinon x\" to turn ON pin x");   
-    data += ("\t\"pinoff x\" to turn OFF pin x");
-    data += ("\t\"help\" to display this message");
+    data += "\nSolarHotty Test Application " + VER_NUM;
+    data += ("\n==============================="); 
+    data += ("\nEnter:");
+    data += ("\n\t\"setcounter x\" set the counter to value x");   
+    data += ("\n\t\"debug\" to toggle the debug flag");   
+    data += ("\n\t\"pinon x\" to turn ON pin x");   
+    data += ("\n\t\"pinoff x\" to turn OFF pin x");
+    data += ("\n\t\"help\" to display this message");
 
     log_data(data);
 
