@@ -142,7 +142,7 @@ void setup()
     //pinMode(AC_GEYSER_ASSIST_ELEMENT_PIN, OUTPUT);
     pinMode(LED_BUILTIN, OUTPUT);
     // Read the configuration i.e. the total number of contact breaks of the thermostat
-    EEPROM_readAnything(81, configuration);
+    EEPROM_readAnything(0, configuration);
     display_help();            
 }                              
 
@@ -235,6 +235,7 @@ void loop() {
                     if (counter >= 7)
                     {
                         configuration.counter++;
+                        EEPROM_writeAnything(0, configuration);
                         thermostat_state = CLOSED;
                         digitalWrite(WATER_PUMP_PIN, HIGH);                             // switch OFF water pump
                         //digitalWrite(AC_GEYSER_ASSIST_ELEMENT_PIN, HIGH);               // switch ON the AC Geyser                        print_thermostat_state();
@@ -302,7 +303,7 @@ void loop() {
             }
         }
 
-        EEPROM_writeAnything(81, configuration);
+        
         // Set the blinking period
         if ((unsigned long)(millis() - last_led_check) >= (led_blink_period /2))
         {
@@ -384,6 +385,7 @@ void parseCommand(String cmd)
         {
             int value = part2.toInt();
             configuration.counter = value;
+            EEPROM_writeAnything(0, configuration);
             print_configuration();
         }
         else
