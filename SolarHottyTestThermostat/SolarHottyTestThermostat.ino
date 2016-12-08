@@ -203,7 +203,7 @@ float measure_dc_current(int RawValue) {
 String command;
 
 
-#define PUMP_ON_OFF_TIME 10000
+#define PUMP_ON_OFF_TIME 15000
 void loop() {
     byte byteRead;
     bool led_state = false;
@@ -246,6 +246,7 @@ void loop() {
                         print_thermostat_state();
                         print_configuration();
                         led_blink_period = 400;
+                        pump_counter = 0;
                     }
                 }
             }
@@ -271,13 +272,13 @@ void loop() {
                         print_thermostat_state();
                         print_configuration();
                         led_blink_period = 1000;
-                        pump_counter = 11
+                        pump_counter = 11;
                     }
                 }
 
                 if (pump_counter > 0)
                 {
-                    if ((unsigned long)(millis() - last_led_check) >= PUMP_ON_OFF_TIME)
+                    if ((unsigned long)(millis() - last_pump_check) >= PUMP_ON_OFF_TIME)
                     {
                         last_pump_check = millis();   // update time
                         if (pump_counter-- % 2)
@@ -296,7 +297,7 @@ void loop() {
         {
             if (hottyState != AC_DETECTED)
             {
-                delay(5000);
+                delay(10000);
                 // Sometime the hotty does a series of test. So to avoid switching while it is doing the tests
                 // we wait a while then perform the check again.
                 if (check_ac_current(RawValue) == true)
@@ -306,6 +307,7 @@ void loop() {
                     digitalWrite(WATER_PUMP_PIN, LOW);                              // switch ON water pump 
                     //digitalWrite(AC_GEYSER_ASSIST_ELEMENT_PIN, LOW);               // switch ON the AC Geyser      
                     led_blink_period = 2000;
+                    pump_counter = 0;
                 }
             }
         }
