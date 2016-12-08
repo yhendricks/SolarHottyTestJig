@@ -202,6 +202,8 @@ float measure_dc_current(int RawValue) {
 
 String command;
 
+
+#define PUMP_ON_OFF_TIME 10000
 void loop() {
     byte byteRead;
     bool led_state = false;
@@ -210,7 +212,9 @@ void loop() {
     // LED status
     unsigned long led_blink_period = 1000; // in milliseconds 
     unsigned long last_led_check = 0;       // Track time in milliseconds since last reading
+    unsigned long last_pump_check = 0;       // Track time in milliseconds since last reading
 
+    byte pump_counter = 0;
 
 
     inputStats.setWindowSecs( windowLength );
@@ -221,7 +225,7 @@ void loop() {
         {
             if (get_thermostat_state(RawValue) == CLOSED)
             {
-                // There is DC current flowing
+                // There is DC current flowing, but check multiple times to make sure
                 if (thermostat_state == OPEN)
                 {
                     counter = 0;
@@ -238,7 +242,8 @@ void loop() {
                         EEPROM_writeAnything(0, configuration);
                         thermostat_state = CLOSED;
                         digitalWrite(WATER_PUMP_PIN, HIGH);                             // switch OFF water pump
-                        //digitalWrite(AC_GEYSER_ASSIST_ELEMENT_PIN, HIGH);               // switch ON the AC Geyser                        print_thermostat_state();
+                        //digitalWrite(AC_GEYSER_ASSIST_ELEMENT_PIN, HIGH);               // switch ON the AC Geyser                        
+                        print_thermostat_state();
                         print_configuration();
                         led_blink_period = 400;
                     }
@@ -263,9 +268,28 @@ void loop() {
                         print_thermostat_state();    
                         digitalWrite(WATER_PUMP_PIN, LOW);             // switch ON water pump
                         //digitalWrite(AC_GEYSER_ASSIST_ELEMENT_PIN, LOW);               // switch OFF the AC Geyser 
+                        print_thermostat_state();
+                        print_configuration();
                         led_blink_period = 1000;
+                        pump_counter = 11
                     }
                 }
+
+                if (pump_counter > 0)
+                {
+                    if ((unsigned long)(millis() - last_led_check) >= PUMP_ON_OFF_TIME)
+                    {
+                        last_pump_check = millis();   // update time
+                        if (pump_counter-- % 2)
+                        {
+                            digitalWrite(WATER_PUMP_PIN, LOW);             // switch ON water pump
+                        }
+                        else
+                        {
+                            digitalWrite(WATER_PUMP_PIN, HIGH);             // switch OFF water pump
+                        } 
+                    }     
+                }         
             }
         }
         else
@@ -394,5 +418,3 @@ void parseCommand(String cmd)
         }
     }
 }
-
-
