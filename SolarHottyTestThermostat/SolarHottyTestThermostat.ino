@@ -266,13 +266,14 @@ void loop() {
                     if (counter >= 7)
                     {
                         thermostat_state = OPEN;   
-                        print_thermostat_state();    
+                        print_thermostat_state(); 
+                        log_data("\nHotty running on DC with NO current detected");   
                         digitalWrite(WATER_PUMP_PIN, LOW);             // switch ON water pump
                         //digitalWrite(AC_GEYSER_ASSIST_ELEMENT_PIN, LOW);               // switch OFF the AC Geyser 
                         print_thermostat_state();
                         print_configuration();
                         led_blink_period = 1000;
-                        pump_counter = 11;
+                        pump_counter = 31;
                     }
                 }
 
@@ -297,7 +298,8 @@ void loop() {
         {
             if (hottyState != AC_DETECTED)
             {
-                delay(10000);
+                // wait a while and then do a re-check
+                delay(5000);
                 // Sometime the hotty does a series of test. So to avoid switching while it is doing the tests
                 // we wait a while then perform the check again.
                 if (check_ac_current(RawValue) == true)
