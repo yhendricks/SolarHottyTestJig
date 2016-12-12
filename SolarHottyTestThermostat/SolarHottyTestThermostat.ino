@@ -215,6 +215,7 @@ void loop() {
     unsigned long last_pump_check = 0;       // Track time in milliseconds since last reading
 
     byte pump_counter = 0;
+    bool starting_up = true;
 
 
     inputStats.setWindowSecs( windowLength );
@@ -238,7 +239,10 @@ void loop() {
                     }
                     if (counter >= 7)
                     {
-                        configuration.counter++;
+                        if (!starting_up)
+                          configuration.counter++;
+                        else
+                          starting_up = false;
                         EEPROM_writeAnything(0, configuration);
                         thermostat_state = CLOSED;
                         digitalWrite(WATER_PUMP_PIN, HIGH);                             // switch OFF water pump
