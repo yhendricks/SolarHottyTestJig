@@ -204,6 +204,7 @@ String command;
 
 
 #define PUMP_ON_OFF_TIME 15000
+#define MAX_PUMP_ON_OFF_CYCLES  31
 void loop() {
     byte byteRead;
     bool led_state = false;
@@ -269,15 +270,20 @@ void loop() {
                     }
                     if (counter >= 7)
                     {
-                        thermostat_state = OPEN;   
-                        print_thermostat_state(); 
-                        log_data("\nHotty running on DC with NO current detected");   
-                        digitalWrite(WATER_PUMP_PIN, LOW);             // switch ON water pump
-                        //digitalWrite(AC_GEYSER_ASSIST_ELEMENT_PIN, LOW);               // switch OFF the AC Geyser 
-                        print_thermostat_state();
-                        print_configuration();
-                        led_blink_period = 1000;
-                        pump_counter = 31;
+                        delay(5000);                      // This delay is to avoid switching the pump on when the solarhotty does self tests
+                        RawValue = analogRead(A0);
+                        if (get_thermostat_state(RawValue) == OPEN)
+                        {
+                            thermostat_state = OPEN;   
+                            print_thermostat_state(); 
+                            log_data("\nHotty running on DC with NO current detected");   
+                            digitalWrite(WATER_PUMP_PIN, LOW);             // switch ON water pump
+                            //digitalWrite(AC_GEYSER_ASSIST_ELEMENT_PIN, LOW);               // switch OFF the AC Geyser 
+                            print_thermostat_state();
+                            print_configuration();
+                            led_blink_period = 1000;
+                            pump_counter = MAX_PUMP_ON_OFF_CYCLES;
+                        }
                     }
                 }
 
