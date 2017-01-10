@@ -4,7 +4,9 @@
 
 #define TEST_FREQUENCY                      50            // test signal frequency (Hz)
 #define WATER_PUMP_PIN                      12
+#define RESET_PIN                           11
 //#define AC_GEYSER_ASSIST_ELEMENT_PIN        12
+#define RESET_PERIOD                        7200000 // 2 hours
 
 bool thermostat_state = false;           // Holds the state of the thermostat
 
@@ -112,8 +114,13 @@ void display_help()
     print_configuration();
 }
 
+
+  
+
 void setup()
 {   
+    digitalWrite(RESET_PIN, HIGH);
+    delay(200);
     // On the Ethernet Shield, CS is pin 4. Note that even if it's not
     // used as the CS pin, the hardware CS pin (10 on most Arduino boards,
     // 53 on the Mega) must be left as an output or the SD library
@@ -141,6 +148,7 @@ void setup()
     pinMode(WATER_PUMP_PIN, OUTPUT);
     //pinMode(AC_GEYSER_ASSIST_ELEMENT_PIN, OUTPUT);
     pinMode(LED_BUILTIN, OUTPUT);
+    pinMode(RESET_PIN, OUTPUT);
     // Read the configuration i.e. the total number of contact breaks of the thermostat
     EEPROM_readAnything(0, configuration);
     display_help();            
@@ -211,9 +219,10 @@ void loop() {
     int counter = 0;
     int RawValue= 0;
     // LED status
-    unsigned long led_blink_period = 1000; // in milliseconds 
+    unsigned long led_blink_period = 1000; // in milliseconds  
     unsigned long last_led_check = 0;       // Track time in milliseconds since last reading
     unsigned long last_pump_check = 0;       // Track time in milliseconds since last reading
+    unsigned long last_reset_check = millis();       // Track time in milliseconds since last reading
 
     byte pump_counter = 0;
     bool starting_up = true;
@@ -356,6 +365,12 @@ void loop() {
                 led_state = true;
                 digitalWrite(LED_BUILTIN, HIGH);  // turn the LED on (HIGH is the voltage level)
             }
+        }
+                                                                       
+        if ((unsigned long)(millis() - last_reset_check) > RESET_PERIOD)
+        {
+            //last_reset_check = millis();
+            digitalWrite(RESET_PIN, LOW);    
         }
     }
 }
