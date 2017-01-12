@@ -98,7 +98,7 @@ bool check_ac_current(int sensorValue) {
 
 void display_help()
 {
-    String VER_NUM = "0.2";           // File version number
+    String VER_NUM = "0.3";           // File version number
     String data = "\r\n";
     data += "\nSolarHotty Test Application " + VER_NUM;
     data += ("\n==============================="); 
@@ -291,7 +291,7 @@ void loop() {
                             print_thermostat_state();
                             print_configuration();
                             led_blink_period = 1000;
-                            pump_counter = MAX_PUMP_ON_OFF_CYCLES;
+                            pump_counter = 1;
                         }
                     }
                 }
@@ -301,14 +301,19 @@ void loop() {
                     if ((unsigned long)(millis() - last_pump_check) >= PUMP_ON_OFF_TIME)
                     {
                         last_pump_check = millis();   // update time
-                        if (pump_counter-- % 2)
+                        if (pump_counter % 2)
                         {
                             digitalWrite(WATER_PUMP_PIN, LOW);             // switch ON water pump
                         }
                         else
                         {
                             digitalWrite(WATER_PUMP_PIN, HIGH);             // switch OFF water pump
+                            if (pump_counter == 2) {
+                                last_pump_check += PUMP_ON_OFF_TIME;        // add double time to the first cooling period
+                            }
+
                         } 
+                        pump_counter++;
                     }     
                 }         
             }
