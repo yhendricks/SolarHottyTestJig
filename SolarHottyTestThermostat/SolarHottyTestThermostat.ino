@@ -308,10 +308,9 @@ void loop() {
                         else
                         {
                             digitalWrite(WATER_PUMP_PIN, HIGH);             // switch OFF water pump
-                            if (pump_counter == 2) {
-                                last_pump_check += PUMP_ON_OFF_TIME;        // add double time to the first cooling period
-                            }
-
+                            //if (pump_counter == 2) {
+                                //last_pump_check += PUMP_ON_OFF_TIME;        // add double time to the first cooling period
+                            //}
                         } 
                         pump_counter++;
                     }     
