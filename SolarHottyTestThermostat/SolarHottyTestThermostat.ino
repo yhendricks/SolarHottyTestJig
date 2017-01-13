@@ -6,7 +6,7 @@
 #define WATER_PUMP_PIN                      12
 #define RESET_PIN                           11
 //#define AC_GEYSER_ASSIST_ELEMENT_PIN        12
-#define RESET_PERIOD                        7200000 // 2 hours
+#define RESET_PERIOD                        600000 // 10 minutess
 
 bool thermostat_state = false;           // Holds the state of the thermostat
 
