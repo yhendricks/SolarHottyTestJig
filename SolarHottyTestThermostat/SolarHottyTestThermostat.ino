@@ -98,7 +98,7 @@ bool check_ac_current(int sensorValue) {
 
 void display_help()
 {
-    String VER_NUM = "0.3";           // File version number
+    String VER_NUM = "0.4";           // File version number
     String data = "\r\n";
     data += "\nSolarHotty Test Application " + VER_NUM;
     data += ("\n==============================="); 
@@ -211,7 +211,7 @@ float measure_dc_current(int RawValue) {
 String command;
 
 
-#define PUMP_ON_OFF_TIME 15000
+#define PUMP_ON_OFF_TIME 30000
 #define MAX_PUMP_ON_OFF_CYCLES  31
 void loop() {
     byte byteRead;
